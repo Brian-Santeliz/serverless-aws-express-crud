@@ -1,0 +1,60 @@
+service: express-http
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: dev
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - { "Fn::GetAtt": ["ProductsDynamoDBTable", "Arn" ] }
+  environment:
+    TABLE_NAME: ${self:custom.TABLE_NAME}
+        
+custom:
+  TABLE_NAME: 'productos-table${self:provider.stage}'    
+  dynamodb:
+    start:
+      migrate: true
+
+functions:
+  api-express:
+    handler: src/handler.controller
+    events:
+      - httpApi: '*'
+
+resources:
+  Resources:
+    ProductsDynamoDBTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.TABLE_NAME}
+
+
+plugins:
+  - serverless-offline
+  - serverless-plugin-include-dependencies
+  - serverless-dynamodb-local
+
+package:
+  exclude:
+    - node_modules/**
+    - .dynamodb-local/**
+    - .dynamodb/** 
